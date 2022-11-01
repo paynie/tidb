@@ -114,11 +114,11 @@ func RunRestoreRaw(c context.Context, g glue.Glue, cmdName string, cfg *RestoreR
 	}
 	summary.CollectInt("restore files", len(files))
 
-	ranges, _, err := restore.MergeFileRanges(
-		files, cfg.MergeSmallRegionKeyCount, cfg.MergeSmallRegionKeyCount)
-	if err != nil {
-		return errors.Trace(err)
-	}
+	//ranges, _, err := restore.MergeFileRanges(
+	//	files, cfg.MergeSmallRegionKeyCount, cfg.MergeSmallRegionKeyCount)
+	//if err != nil {
+	//	return errors.Trace(err)
+	//}
 
 	// Redirect to log if there is no log file to avoid unreadable output.
 	// TODO: How to show progress?
@@ -126,15 +126,15 @@ func RunRestoreRaw(c context.Context, g glue.Glue, cmdName string, cfg *RestoreR
 		ctx,
 		"Raw Restore",
 		// Split/Scatter + Download/Ingest
-		int64(len(ranges)+len(files)),
+		int64(len(files)),
 		!cfg.LogProgress)
 
 	// RawKV restore does not need to rewrite keys.
-	rewrite := &restore.RewriteRules{}
-	err = restore.SplitRanges(ctx, client, ranges, rewrite, updateCh)
-	if err != nil {
-		return errors.Trace(err)
-	}
+	//rewrite := &restore.RewriteRules{}
+	//err = restore.SplitRanges(ctx, client, ranges, rewrite, updateCh)
+	//if err != nil {
+	//	return errors.Trace(err)
+	//}
 
 	restoreSchedulers, err := restorePreWork(ctx, client, mgr)
 	if err != nil {

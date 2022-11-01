@@ -140,6 +140,7 @@ func (push *pushDown) pushBackup(
 				}
 			})
 			if resp.GetError() == nil {
+                                logutil.CL(ctx).Info("Response is success.")
 				// None error means range has been backuped successfully.
 				res.Put(
 					resp.GetStartKey(), resp.GetEndKey(), resp.GetFiles())
@@ -147,13 +148,16 @@ func (push *pushDown) pushBackup(
 				// Update progress
 				progressCallBack(RegionUnit)
 			} else {
+                                logutil.CL(ctx).Info("Response is failed.")
 				errPb := resp.GetError()
 				switch v := errPb.Detail.(type) {
 				case *backuppb.Error_KvError:
 					logutil.CL(ctx).Warn("backup occur kv error", zap.Reflect("error", v))
+                                        return res, errors.Annotatef(berrors.ErrKVUnknown, "%v", errPb)
 
 				case *backuppb.Error_RegionError:
 					logutil.CL(ctx).Warn("backup occur region error", zap.Reflect("error", v))
+                                        return res, errors.Annotatef(berrors.ErrBackupNoLeader, "%v", errPb)
 
 				case *backuppb.Error_ClusterIdError:
 					logutil.CL(ctx).Error("backup occur cluster ID error", zap.Reflect("error", v))
@@ -161,7 +165,6 @@ func (push *pushDown) pushBackup(
 				default:
 					if utils.MessageIsRetryableStorageError(errPb.GetMsg()) {
 						logutil.CL(ctx).Warn("backup occur storage error", zap.String("error", errPb.GetMsg()))
-						continue
 					}
 					if utils.MessageIsNotFoundStorageError(errPb.GetMsg()) {
 						errMsg := fmt.Sprintf("File or directory not found error occurs on TiKV Node(store id: %v; Address: %s)", store.GetId(), redact.String(store.GetAddress()))

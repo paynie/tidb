@@ -709,7 +709,7 @@ func OnBackupResponse(
 	lockResolver *txnlock.LockResolver,
 	resp *backuppb.BackupResponse,
 ) (*backuppb.BackupResponse, int, error) {
-	log.Debug("OnBackupResponse", zap.Reflect("resp", resp))
+	log.Info("OnBackupResponse", zap.Reflect("resp", resp))
 	if resp.Error == nil {
 		return resp, 0, nil
 	}
