@@ -28,6 +28,7 @@ const (
 	flagTiKVColumnFamily = "cf"
 	flagStartKey         = "start"
 	flagEndKey           = "end"
+	flagBatchsize        = "batchsize"
 )
 
 // RawKvConfig is the common config for rawkv backup and restore.
@@ -38,7 +39,8 @@ type RawKvConfig struct {
 	EndKey   []byte `json:"end-key" toml:"end-key"`
 	CF       string `json:"cf" toml:"cf"`
 	CompressionConfig
-	RemoveSchedulers bool `json:"remove-schedulers" toml:"remove-schedulers"`
+	RemoveSchedulers bool   `json:"remove-schedulers" toml:"remove-schedulers"`
+	Batchsize        uint32 `json:"batch-size" toml:"batch-size"`
 }
 
 // DefineRawBackupFlags defines common flags for the backup command.
@@ -53,6 +55,7 @@ func DefineRawBackupFlags(command *cobra.Command) {
 		"disable the balance, shuffle and region-merge schedulers in PD to speed up backup")
 	// This flag can impact the online cluster, so hide it in case of abuse.
 	_ = command.Flags().MarkHidden(flagRemoveSchedulers)
+	command.Flags().Uint(flagBatchsize, 0, "batch size for regions")
 }
 
 // ParseFromFlags parses the raw kv backup&restore common flags from the flag set.
@@ -88,6 +91,7 @@ func (cfg *RawKvConfig) ParseFromFlags(flags *pflag.FlagSet) error {
 	if err = cfg.Config.ParseFromFlags(flags); err != nil {
 		return errors.Trace(err)
 	}
+
 	return nil
 }
 
@@ -113,6 +117,10 @@ func (cfg *RawKvConfig) ParseBackupConfigFromFlags(flags *pflag.FlagSet) error {
 		return errors.Trace(err)
 	}
 	cfg.CompressionLevel = level
+
+	if cfg.Batchsize, err = flags.GetUint32(flagBatchsize); err != nil {
+		return errors.Trace(err)
+	}
 
 	return nil
 }
@@ -200,12 +208,15 @@ func RunBackupRaw(c context.Context, g glue.Glue, cmdName string, cfg *RawKvConf
 		updateCh.Inc()
 	}
 
+	log.Warn("concurrent information", zap.Uint32("batch size", cfg.Batchsize), zap.Uint32("concurrency", cfg.Concurrency))
+	var concurrentBatchsize = ((cfg.Concurrency & 0xffff) << 16) + (cfg.Batchsize & 0xffff)
+
 	req := backuppb.BackupRequest{
 		ClusterId:        client.GetClusterID(),
 		StartVersion:     0,
 		EndVersion:       0,
 		RateLimit:        cfg.RateLimit,
-		Concurrency:      cfg.Concurrency,
+		Concurrency:      concurrentBatchsize,
 		IsRawKv:          true,
 		Cf:               cfg.CF,
 		CompressionType:  cfg.CompressionType,
