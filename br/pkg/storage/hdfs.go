@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,8 +75,21 @@ func (s *HDFSStorage) WriteFile(_ context.Context, name string, data []byte) err
 }
 
 // ReadFile reads a complete file from storage, similar to os.ReadFile
-func (*HDFSStorage) ReadFile(_ context.Context, _ string) ([]byte, error) {
-	return nil, errors.Annotatef(berrors.ErrUnsupportedOperation, "currently HDFS backend only support rawkv backup")
+func (s *HDFSStorage) ReadFile(_ context.Context, name string) ([]byte, error) {
+	filePath := fmt.Sprintf("%s/%s", s.remote, name)
+	pwd, _ := os.Getwd()
+	localName := fmt.Sprintf("%s/%s_%s", pwd, uuid.New().String(), name)
+	cmd, err := dfsCommand("-get", filePath, localName)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Annotate(err, string(out))
+	}
+
+	return os.ReadFile(localName)
 }
 
 // FileExists return true if file exists
