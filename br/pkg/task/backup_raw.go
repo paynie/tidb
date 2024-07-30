@@ -5,7 +5,7 @@ package task
 import (
 	"bytes"
 	"context"
-
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pingcap/errors"
 	backuppb "github.com/pingcap/kvproto/pkg/brpb"
 	"github.com/pingcap/log"
